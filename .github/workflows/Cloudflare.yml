@@ -1,32 +1,22 @@
-name: Update CLOUDFLARE
-
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 */6 * * *"
-
-jobs:
-  update-list:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Fetch and Sync IPs
+- name: Sync IPs to Cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_LIST_ID: ${{ secrets.CLOUDFLARE_LIST_ID }}
         run: |
-          # 1. Fetch IPs and format them into a JSON string
+          # 1. Fetch IPs and build the full JSON payload
           curl -s https://raw.githubusercontent.com/Y3ll0w/CrowdSec-CAPI-Decisions/refs/heads/main/all.txt | \
           grep -E '^[0-9]' | \
           awk '{print "{\"value\": \"" $1 "\", \"description\": \"crowdsec-sync\"}"}' | \
-          paste -sd, - > items.json
+          paste -sd, - > items_list.txt
+          
+          # 2. Wrap items in the JSON structure
+          echo '{"name": "CrowdSec-CAPI-List", "type": "IP", "items": [' > payload.json
+          cat items_list.txt >> payload.json
+          echo ']}' >> payload.json
 
-          # 2. Update the Gateway List
+          # 3. Send using the file instead of data argument
           curl -v -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/gateway/lists/$CLOUDFLARE_LIST_ID" \
                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                -H "Content-Type: application/json" \
-               --data '{
-                 "name": "CrowdSec-CAPI-List",
-                 "type": "IP",
-                 "items": ['$(cat items.json)']
-               }'
+               --data @payload.json
