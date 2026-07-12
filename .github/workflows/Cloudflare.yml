@@ -1,4 +1,4 @@
-name: Update CrowdSec
+name: Update cloud
 
 on:
   workflow_dispatch:
@@ -17,10 +17,10 @@ jobs:
         run: |
           curl -s https://raw.githubusercontent.com/Y3ll0w/CrowdSec-CAPI-Decisions/refs/heads/main/all.txt | \
           grep -E '^[0-9]' | \
-          awk '{print "{\"ip\": \"" $1 "\", \"comment\": \"crowdsec-sync\"}"}' | \
+          awk '{print "{\"value\": \"" $1 "\", \"description\": \"crowdsec-sync\"}"}' | \
           paste -sd, - | sed 's/^/[/' | sed 's/$/]/' > crowdsec.json
-
-          curl -v -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/gateway/lists/$CLOUDFLARE_LIST_ID/items" \
+          
+          curl -v -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/gateway/lists/$CLOUDFLARE_LIST_ID/items" \
                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                -H "Content-Type: application/json" \
                --data @crowdsec.json
